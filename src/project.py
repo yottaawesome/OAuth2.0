@@ -1,18 +1,28 @@
 #!/usr/bin/env python
-from flask import Flask, render_template, request, redirect,jsonify, url_for, flash
-app = Flask(__name__)
+
+from flask import (Flask, render_template, request, redirect,jsonify, url_for, 
+  flash, session as login_session)
 
 from sqlalchemy import create_engine, asc
 from sqlalchemy.orm import sessionmaker
 from database_setup import Base, Restaurant, MenuItem
+import random, string
 
+app = Flask(__name__)
 
 #Connect to Database and create database session
 engine = create_engine('sqlite:///restaurantmenu.db')
 Base.metadata.bind = engine
-
 DBSession = sessionmaker(bind=engine)
 session = DBSession()
+
+# Create anti-forgery state token
+@app.route('/login')
+def showLogin():
+  state = ''.join(random.choice(string.ascii_uppercase + string.digits)
+                  for x in range(32))
+  login_session['state'] = state
+  return "The current session state is {}".format(login_session['state'])
 
 
 #JSON APIs to view Restaurant Information
@@ -28,6 +38,7 @@ def menuItemJSON(restaurant_id, menu_id):
     Menu_Item = session.query(MenuItem).filter_by(id = menu_id).one()
     return jsonify(Menu_Item = Menu_Item.serialize)
 
+
 @app.route('/restaurant/JSON')
 def restaurantsJSON():
     restaurants = session.query(Restaurant).all()
@@ -41,6 +52,7 @@ def showRestaurants():
   restaurants = session.query(Restaurant).order_by(asc(Restaurant.name))
   return render_template('restaurants.html', restaurants = restaurants)
 
+
 #Create a new restaurant
 @app.route('/restaurant/new/', methods=['GET','POST'])
 def newRestaurant():
@@ -52,6 +64,7 @@ def newRestaurant():
       return redirect(url_for('showRestaurants'))
   else:
       return render_template('newRestaurant.html')
+
 
 #Edit a restaurant
 @app.route('/restaurant/<int:restaurant_id>/edit/', methods = ['GET', 'POST'])
@@ -78,6 +91,7 @@ def deleteRestaurant(restaurant_id):
   else:
     return render_template('deleteRestaurant.html',restaurant = restaurantToDelete)
 
+
 #Show a restaurant menu
 @app.route('/restaurant/<int:restaurant_id>/')
 @app.route('/restaurant/<int:restaurant_id>/menu/')
@@ -100,6 +114,7 @@ def newMenuItem(restaurant_id):
       return redirect(url_for('showMenu', restaurant_id = restaurant_id))
   else:
       return render_template('newmenuitem.html', restaurant_id = restaurant_id)
+
 
 #Edit a menu item
 @app.route('/restaurant/<int:restaurant_id>/menu/<int:menu_id>/edit', methods=['GET','POST'])
@@ -136,8 +151,6 @@ def deleteMenuItem(restaurant_id,menu_id):
         return redirect(url_for('showMenu', restaurant_id = restaurant_id))
     else:
         return render_template('deleteMenuItem.html', item = itemToDelete)
-
-
 
 
 if __name__ == '__main__':
