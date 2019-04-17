@@ -139,6 +139,7 @@ def gdisconnect():
     response = make_response(json.dumps('Current user not connected.'), 401)
     response.headers['Content-Type'] = 'application/json'
     return response
+
   print('In gdisconnect access token is {}'.format(access_token))
   print('User name is {}'.format(login_session['username']))
   url = 'https://accounts.google.com/o/oauth2/revoke?token={}'.format(login_session['access_token'])
@@ -157,10 +158,10 @@ def gdisconnect():
     response = make_response(json.dumps('Successfully disconnected.'), 200)
     response.headers['Content-Type'] = 'application/json'
     return response
-  else:
-    response = make_response(json.dumps('Failed to revoke token for given user.'), 400)
-    response.headers['Content-Type'] = 'application/json'
-    return response
+
+  response = make_response(json.dumps('Failed to revoke token for given user.'), 400)
+  response.headers['Content-Type'] = 'application/json'
+  return response
 
 
 #JSON APIs to view Restaurant Information
@@ -194,6 +195,7 @@ def restaurantsJSON():
     session = DBSession()
     restaurants = session.query(Restaurant).all()
     return jsonify(restaurants= [r.serialize for r in restaurants])
+
   finally:
     if session:
       session.close()
@@ -207,6 +209,7 @@ def showRestaurants():
     session = DBSession()
     restaurants = session.query(Restaurant).order_by(asc(Restaurant.name))
     return render_template('restaurants.html', restaurants = restaurants)
+
   finally:
     if session:
         session.close()
@@ -214,16 +217,21 @@ def showRestaurants():
 #Create a new restaurant
 @app.route('/restaurant/new/', methods=['GET','POST'])
 def newRestaurant():
-  try:
+  try:    
+    if 'username' not in login_session:
+      return redirect('/login')
+    
     session = DBSession()
+
     if request.method == 'POST':
-        newRestaurant = Restaurant(name = request.form['name'])
-        session.add(newRestaurant)
-        flash('New Restaurant %s Successfully Created' % newRestaurant.name)
-        session.commit()
-        return redirect(url_for('showRestaurants'))
-    else:
-        return render_template('newRestaurant.html')
+      newRestaurant = Restaurant(name = request.form['name'])
+      session.add(newRestaurant)
+      flash('New Restaurant %s Successfully Created' % newRestaurant.name)
+      session.commit()
+      return redirect(url_for('showRestaurants'))
+    
+    return render_template('newRestaurant.html')
+  
   finally:
       if session:
         session.close()
@@ -234,13 +242,14 @@ def editRestaurant(restaurant_id):
   try:
     session = DBSession()
     editedRestaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
-    if request.method == 'POST':
-        if request.form['name']:
-          editedRestaurant.name = request.form['name']
-          flash('Restaurant Successfully Edited %s' % editedRestaurant.name)
-          return redirect(url_for('showRestaurants'))
-    else:
-      return render_template('editRestaurant.html', restaurant = editedRestaurant)
+
+    if request.method == 'POST' and request.form['name']:
+      editedRestaurant.name = request.form['name']
+      flash('Restaurant Successfully Edited %s' % editedRestaurant.name)
+      return redirect(url_for('showRestaurants'))
+    
+    return render_template('editRestaurant.html', restaurant = editedRestaurant)
+  
   finally:
     if session:
       session.close()
@@ -256,8 +265,8 @@ def deleteRestaurant(restaurant_id):
       flash('%s Successfully Deleted' % restaurantToDelete.name)
       session.commit()
       return redirect(url_for('showRestaurants', restaurant_id = restaurant_id))
-    else:
-      return render_template('deleteRestaurant.html',restaurant = restaurantToDelete)
+
+    return render_template('deleteRestaurant.html',restaurant = restaurantToDelete)
 
   finally:
     if session:
@@ -272,6 +281,7 @@ def showMenu(restaurant_id):
     restaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
     items = session.query(MenuItem).filter_by(restaurant_id = restaurant_id).all()
     return render_template('menu.html', items = items, restaurant = restaurant)
+
   finally:
     if session:
       session.close()
